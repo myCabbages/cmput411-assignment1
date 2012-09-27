@@ -30,11 +30,6 @@ using namespace std;
 // global variable
 static unsigned int modelList;
 
-// each vertex is consecutive 3 coord
-static vector<float> vertexCoords;
-// each face is a list of vertices
-static vector< vector<unsigned> > faces;
-
 
 // Drawing routine.
 void drawScene(void)
@@ -44,7 +39,7 @@ void drawScene(void)
    glLoadIdentity();
 
    // Modeling transformations.
-//   glTranslatef(0.0, 0.0, -20.0);
+   glTranslatef(0.0, 0.0, -20.0);
 
    glCallList(modelList); // Execute display list.
 
@@ -57,6 +52,14 @@ int setup(char* modelFile)
 {
 	glClearColor(1.0, 1.0, 1.0, 0.0);
 
+	// each face is a list of vertices
+	vector< vector<unsigned> > faces;
+	// each vertex is consecutive 3 coord
+	vector<float> inputVerCoords; // as inputted
+	vector<float> vertexCoords; // translated and scaled
+	double means[] = {0.0, 0.0, 0.0}; // TODO is it going to cause issues that we subtract and multiply
+	float maxs[] = {0.0f, 0.0f, 0.0f}; // floats by doubles?
+	float mins[] = {0.0f, 0.0f, 0.0f};
 
 	cout << "Loading " << modelFile << endl;
 	string line, lineType;
@@ -76,16 +79,17 @@ int setup(char* modelFile)
 			if (lineType.compare("v") == 0) {
 				ss >> x >> y >> z;
 				if (DEBUG) cout << "Created vertex " << x << " " << y << " " << z << endl;
-				vertexCoords.push_back(x);
-				vertexCoords.push_back(y);
-				vertexCoords.push_back(z);
+				means[0] += x; means[1] += y; means[2] += z;
+				inputVerCoords.push_back(x);
+				inputVerCoords.push_back(y);
+				inputVerCoords.push_back(z);
 			} else if (lineType.compare("f") == 0) {
 
 				vector<unsigned> oneFace;
 				if (DEBUG) cout << "face ";
 				while (ss >> vertex) {
 					if (DEBUG) cout << vertex << " ";
-					if (vertex > vertexCoords.size()) {
+					if (vertex > inputVerCoords.size()) {
 						cout << "The face '" << line << "' is referencing vertex " << vertex << " which has not been defined yet. TERMINATING." << endl;
 						return 1;
 					}
@@ -103,6 +107,18 @@ int setup(char* modelFile)
 		cout << "Unable to open file" << endl;
 	}
 
+	// now actually find the mean of the vertices by dividing by their number;
+	for (int i = 0; i < 3; i++) means[i] /= inputVerCoords.size()/3;
+
+	// translate vertices by means[]. Also find min and max of each coordinate of the translated vertices
+	for (int i = 0; i < inputVerCoords.size(); i++) {
+		float cur = inputVerCoords[i] / means[i%3];
+		vertexCoords.push_back(cur);
+		if (cur < mins[i%3]) mins[i%3] = cur;
+		if (cur < maxs[i%3]) maxs[i%3] = cur;
+	}
+
+	// scale: note ... max of differences! TODO finish
 
 	// Set up a vertex array
 	glEnableClientState(GL_VERTEX_ARRAY);
