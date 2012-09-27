@@ -29,7 +29,12 @@ using namespace std;
 
 // global variable
 static unsigned int modelList;
+// vertex coordinates as inputted
+vector<float> inputVerCoords;
+// each face is a list of vertices
+vector< vector<unsigned> > faces;
 
+float zMove = -15.0f;
 
 // Drawing routine.
 void drawScene(void)
@@ -39,7 +44,7 @@ void drawScene(void)
    glLoadIdentity();
 
    // Modeling transformations.
-   glTranslatef(0.0, 0.0, -20.0);
+   glTranslatef(0.0, 0.0, zMove);
 
    glCallList(modelList); // Execute display list.
 
@@ -52,10 +57,7 @@ int setup(char* modelFile)
 {
 	glClearColor(1.0, 1.0, 1.0, 0.0);
 
-	// each face is a list of vertices
-	vector< vector<unsigned> > faces;
 	// each vertex is consecutive 3 coord
-	vector<float> inputVerCoords; // as inputted
 	vector<float> vertexCoords; // translated and scaled
 	double means[] = {0.0, 0.0, 0.0}; // TODO is it going to cause issues that we subtract and multiply
 	float maxs[] = {0.0f, 0.0f, 0.0f}; // floats by doubles?
@@ -86,9 +88,9 @@ int setup(char* modelFile)
 			} else if (lineType.compare("f") == 0) {
 
 				vector<unsigned> oneFace;
-				if (DEBUG) cout << "face ";
+//				if (DEBUG) cout << "face ";
 				while (ss >> vertex) {
-					if (DEBUG) cout << vertex << " ";
+//					if (DEBUG) cout << vertex << " ";
 					if (vertex > inputVerCoords.size()) {
 						cout << "The face '" << line << "' is referencing vertex " << vertex << " which has not been defined yet. TERMINATING." << endl;
 						return 1;
@@ -96,7 +98,7 @@ int setup(char* modelFile)
 					oneFace.push_back(vertex);
 				}
 				faces.push_back(oneFace);
-				if (DEBUG) cout << endl;
+//				if (DEBUG) cout << endl;
 
 			} else {
 				cout << "Ignoring line: " << line << endl;
@@ -104,21 +106,39 @@ int setup(char* modelFile)
 		}
 	    myfile.close();
 	} else {
-		cout << "Unable to open file" << endl;
+		cout << "Unable to open file. TERMINATING." << endl;
+		return 1;
 	}
 
 	// now actually find the mean of the vertices by dividing by their number;
 	for (int i = 0; i < 3; i++) means[i] /= inputVerCoords.size()/3;
-
-	// translate vertices by means[]. Also find min and max of each coordinate of the translated vertices
-	for (int i = 0; i < inputVerCoords.size(); i++) {
-		float cur = inputVerCoords[i] / means[i%3];
-		vertexCoords.push_back(cur);
-		if (cur < mins[i%3]) mins[i%3] = cur;
-		if (cur < maxs[i%3]) maxs[i%3] = cur;
+	if (DEBUG) {
+		cout << "mean of vertices:";
+		for (int i = 0; i < 3; i++) cout << " " << means[i];
+		cout << endl;
 	}
 
-	// scale: note ... max of differences! TODO finish
+	// translate vertices by -means[]. Also find min and max of each coordinate of the translated vertices
+	for (unsigned i = 0; i < inputVerCoords.size(); i++) {
+		float cur = inputVerCoords[i] - means[i%3];
+		vertexCoords.push_back(cur);
+		if (cur < mins[i%3]) mins[i%3] = cur;
+		if (cur > maxs[i%3]) maxs[i%3] = cur;
+	}
+
+	float maxDiff = 0; // find maxDiff
+	cout << "MAX\tMIN" << endl;
+	for (int i = 0; i < 3; i++) {
+		cout << maxs[i] << "\t" << mins[i] << endl;
+		if (maxs[i] - mins[i] > maxDiff) maxDiff = maxs[i] - mins[i];
+	}
+
+	// scale by 1.0/maxDiff and then add 2 to z
+	for (unsigned i = 0; i < inputVerCoords.size(); i++) {
+		vertexCoords[i] /= maxDiff;
+		if ((i%3) == 2) vertexCoords[i] += 2;
+	}
+
 
 	// Set up a vertex array
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -147,8 +167,8 @@ void outputModel() {
 	myfile.precision(6);
 	myfile << fixed;
 	// vertices first
-	for (unsigned v = 0; v < vertexCoords.size(); v += 3)
-		myfile << "v " << vertexCoords[v] << " " << vertexCoords[v+1] << " " << vertexCoords[v+2] << endl;
+	for (unsigned v = 0; v < inputVerCoords.size(); v += 3)
+		myfile << "v " << inputVerCoords[v] << " " << inputVerCoords[v+1] << " " << inputVerCoords[v+2] << endl;
 	// then faces
 	for (unsigned i = 0; i < faces.size(); i++) {
 		myfile << "f";
@@ -181,6 +201,13 @@ void keyInput(unsigned char key, int x, int y)
 		break;
 	case 'w':
 		outputModel();
+		break;
+	case 'a': // TODO testing
+		zMove -= 10;
+	case 'z': // TODO testing
+		zMove += 5;
+		cout << "zMove = " << zMove << endl;
+		glutPostRedisplay();
 		break;
 	default:
 		break;
