@@ -32,8 +32,9 @@ static unsigned int modelList;
 vector<float> inputVerCoords; // vertex coordinates as inputted
 vector< vector<unsigned> > faces; // each face is a list of vertices
 
-static float zMove = 0.0f; // z position of model
-static float rot = 0.0f; // z position of model
+static float modelMoved[] = { 0.0f, 0.0f, 0.0f}; // position of model
+static float modelRot[] = { 0.0f, 0.0f, 0.0f}; // rotation of model (aboutX, aboutY, aboutZ) around center of model
+//static float rot = 0.0f; // z position of model
 static bool persp = false; // perspective or orthographic projection?
 
 // Drawing routine.
@@ -46,13 +47,16 @@ void drawScene(void)
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	// Modeling transformations.
-	glTranslatef(0.0, 0.0, zMove-2.0); // add -2 here so we can rotate
-	glRotatef(rot, 0, 1, 0);
+	glTranslatef(modelMoved[0], modelMoved[1], modelMoved[2]-2.0); // add -2 here so we can rotate around center
+	glRotatef(modelRot[0], 1, 0, 0);
+	glRotatef(modelRot[1], 0, 1, 0);
+	glRotatef(modelRot[2], 0, 0, 1);
 
 //	glTranslatef(0.0, 0.0, -2.0);
 	glCallList(modelList); // Execute display list.
 
-	glFlush();
+//	glFlush();
+	glutSwapBuffers();
 }
 
 // Initialization routine.
@@ -143,6 +147,7 @@ int setup(char* modelFile)
 //		if ((i%3) == 2) vertexCoords[i] -= 2;
 		// I decided not to translate here, as that makes it hard to rotate it around its center
 		// Instead, it is translated in the drawScene function
+		// TODO maybe do it here afterall, but then
 	}
 
 
@@ -166,9 +171,10 @@ int setup(char* modelFile)
 	return 0;
 }
 
+// instead of the idle solution, use glutTimerFunc(period in ms, timer_function, value)
 void doWhenIdle() {
-	rot += 0.2;
-	glutPostRedisplay();
+//	modelRot[1] += 0.5;
+//	glutPostRedisplay();
 }
 
 void outputModel() {
@@ -232,16 +238,26 @@ void keyInput(unsigned char key, int x, int y)
 	case 'w':
 		outputModel();
 		break;
-	case 'a': // TODO testing
-		zMove -= 0.6;
-	case 'z': // TODO testing
-		zMove += 0.3;
-		cout << "zMove = " << zMove << endl;
-		glutPostRedisplay();
-		break;
+	// translations;
+	case 'l': modelMoved[0] -= 0.1; break;
+	case 'L': modelMoved[0] += 0.1; break;
+	case 'd': modelMoved[1] -= 0.1; break;
+	case 'D': modelMoved[1] += 0.1; break;
+	case 'n': modelMoved[2] -= 0.1; break;
+	case 'N': modelMoved[2] += 0.1; break;
+	// rotations:
+	case 'p': modelRot[0] -= 10.0; break;
+	case 'P': modelRot[0] += 10.0; break;
+	case 'y': modelRot[1] -= 10.0; break;
+	case 'Y': modelRot[1] += 10.0; break;
+	case 'r': modelRot[2] -= 10.0; break;
+	case 'R': modelRot[2] += 10.0; break;
 	default:
 		break;
 	}
+
+	// for most actions this is required, other times it can't hurt
+	glutPostRedisplay();
 }
 
 // Main routine.
@@ -254,7 +270,8 @@ int main(int argc, char **argv)
 	}
 
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
+//	glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
 	glutInitWindowSize(500, 500);
 	glutInitWindowPosition(100, 100);
 	glutCreateWindow("box.cpp");
