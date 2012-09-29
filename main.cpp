@@ -27,28 +27,32 @@
 
 using namespace std;
 
-// global variable
+// GLOBAL VARIABLES -------------------
 static unsigned int modelList;
-// vertex coordinates as inputted
-vector<float> inputVerCoords;
-// each face is a list of vertices
-vector< vector<unsigned> > faces;
+vector<float> inputVerCoords; // vertex coordinates as inputted
+vector< vector<unsigned> > faces; // each face is a list of vertices
 
-float zMove = -15.0f;
+static float zMove = 0.0f; // z position of model
+static float rot = 0.0f; // z position of model
+static bool persp = false; // perspective or orthographic projection?
 
 // Drawing routine.
 void drawScene(void)
 {
-   glClear(GL_COLOR_BUFFER_BIT);
-   glColor3f(0.0, 0.0, 0.0);
-   glLoadIdentity();
+	glClear(GL_COLOR_BUFFER_BIT);
+	glLoadIdentity();
 
-   // Modeling transformations.
-   glTranslatef(0.0, 0.0, zMove);
+	glColor3f(0.0, 0.0, 0.0);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-   glCallList(modelList); // Execute display list.
+	// Modeling transformations.
+	glTranslatef(0.0, 0.0, zMove-2.0); // add -2 here so we can rotate
+	glRotatef(rot, 0, 1, 0);
 
-   glFlush();
+//	glTranslatef(0.0, 0.0, -2.0);
+	glCallList(modelList); // Execute display list.
+
+	glFlush();
 }
 
 // Initialization routine.
@@ -101,7 +105,7 @@ int setup(char* modelFile)
 //				if (DEBUG) cout << endl;
 
 			} else {
-				cout << "Ignoring line: " << line << endl;
+				if (DEBUG) 	cout << "Ignoring line: " << line << endl;
 			}
 		}
 	    myfile.close();
@@ -133,10 +137,12 @@ int setup(char* modelFile)
 		if (maxs[i] - mins[i] > maxDiff) maxDiff = maxs[i] - mins[i];
 	}
 
-	// scale by 1.0/maxDiff and then add 2 to z
+	// scale by 1.0/maxDiff
 	for (unsigned i = 0; i < inputVerCoords.size(); i++) {
 		vertexCoords[i] /= maxDiff;
-		if ((i%3) == 2) vertexCoords[i] += 2;
+//		if ((i%3) == 2) vertexCoords[i] -= 2;
+		// I decided not to translate here, as that makes it hard to rotate it around its center
+		// Instead, it is translated in the drawScene function
 	}
 
 
@@ -156,9 +162,13 @@ int setup(char* modelFile)
 	glEndList();
 	// End create a display list.
 
-	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
 	return 0;
+}
+
+void doWhenIdle() {
+	rot += 0.2;
+	glutPostRedisplay();
 }
 
 void outputModel() {
@@ -180,16 +190,28 @@ void outputModel() {
 	myfile.close();
 }
 
+void updateProjection() {
+	// syntax:
+	//	glOrtho(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near, GLdouble far);
+	//	glFrustum(GLdouble left, GLdouble right, GLdouble bottom, GLdouble top, GLdouble near, GLdouble far);
+	cout << "Changing projection type to " << ((persp) ? "perspective" : "orthographic") << endl;
+	glMatrixMode(GL_PROJECTION);
+	glLoadIdentity();
+	if (persp) 	glFrustum(-1.0, 1.0, -1.0, 1.0, 1.0, 100.0);
+	else 		glOrtho(-1.0, 1.0, -1.0, 1.0, 1.0, 100.0);
+	glMatrixMode(GL_MODELVIEW);
+
+	glutPostRedisplay();
+}
+
 // OpenGL window reshape routine.
 void resize(int w, int h)
 {
-   glViewport(0, 0, (GLsizei)w, (GLsizei)h);
-   glMatrixMode(GL_PROJECTION);
-   glLoadIdentity();
-   glFrustum(-5.0, 5.0, -5.0, 5.0, 5.0, 100.0);
-
-   glMatrixMode(GL_MODELVIEW);
+	glViewport(0, 0, (GLsizei)w, (GLsizei)h);
+//	glFrustum(-5.0, 5.0, -5.0, 5.0, 5.0, 100.0); // original
+	updateProjection();
 }
+
 
 // Keyboard input processing routine.
 void keyInput(unsigned char key, int x, int y)
@@ -199,13 +221,21 @@ void keyInput(unsigned char key, int x, int y)
 	case 27:
 		exit(0);
 		break;
+	case 'v':
+		persp = false;
+		updateProjection();
+		break;
+	case 'V':
+		persp = true;
+		updateProjection();
+		break;
 	case 'w':
 		outputModel();
 		break;
 	case 'a': // TODO testing
-		zMove -= 10;
+		zMove -= 0.6;
 	case 'z': // TODO testing
-		zMove += 5;
+		zMove += 0.3;
 		cout << "zMove = " << zMove << endl;
 		glutPostRedisplay();
 		break;
@@ -234,6 +264,7 @@ int main(int argc, char **argv)
 	glutDisplayFunc(drawScene);
 	glutReshapeFunc(resize);
 	glutKeyboardFunc(keyInput);
+	glutIdleFunc(doWhenIdle); // TODO to test
 	glutMainLoop();
 
    return 0;
