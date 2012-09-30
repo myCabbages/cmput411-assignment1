@@ -1,40 +1,6 @@
-- DO EVERYTHING AFTER STEP 3
-
-- IN STEP 3 THE MODEL SEEMS TOOOO TINY
 
 - NEW CONTACT
 shuyi3@ualberta.ca
 
-- IMPORTANT CHANGES TO ASSIGNMENT (download new one!!):
-However, the initial viewing plane should be at z=-1 (that is, near=1) and the far viewing plane should be at z=-100 (that is, far=100).  Furthermore, the initial object position should be at (0,0,-2)' so that the object is initially centered and visible in the field of view. 
+Both object and camera translations are messed up!! They need to move with respect to the local frame
 
-
-
-To keep things consistent and clear for everyone, let's follow some standard conventions:
-
-Rotations: all rotations are to be done in the local coordinate systems.
-
-That is, if the camera is (tilted, panned, rolled) then the camera-xyz axes (tilt, pan, roll) with the camera so that -z (in the camera coordinate system) always remains the camera gaze direction and y (in the camera coordinate system) always remains the camera up direction.  Similarly, if the object is (yawed, pitched, rolled) then the object-xyz axes (yaw, pitch, roll) with the object; that is the object rotation axes are permanently glued to the object in their initial configuration (e.g. for the man model the object y-axis always goes through the man's head).
-
-Translations: all translations are to be done in the in the local coordinate *directions*.
-
-That is, raising the camera means moving the camera in the global coordinate system but in the "camera-up/down direction".
-Dollying the camera means moving the camera in the global coordinate system but in the "camera-right/left direction".
-Zooming the camera means moving the camera in the global coordinate system but in the "camera-gaze direction".
-Similarly, moving the object in the "x direction" means translating the object in the global coordinate system but in the "object x direction".
-Moving the object in the "y direction" means translating the object in the global coordinate system but in the "object y direction".
-Moving the object in the "z direction" means translating the object in the global coordinate system but in the "object z direction".
-
-(Note that the object and camera must always remain at the origin of their respective local coordinate systems so that their rotation behavior is not wrecked.)
-
-
-
-
-
-Fair enough.
-
-To be more intuitive and consistent for everyone, the camera up/down controls should be defined so that uparrow means moving the camera up (which of course will move the object in the field of view down).  Similarly, downarrow means moving the camera down (which will move the object up in the field of view).
-
-I think it would be more intuitive to keep the camera movement commands tied to the camera in this way, as opposed to the object being viewed.  Furthermore, the previous specification was not consistent between left/right, forward/backward (which were camera based),  and up/down (which was object-view based, but now switched to camera based).
-
-I will post an updated assignment handout that corrects all the typos identified shortly.
