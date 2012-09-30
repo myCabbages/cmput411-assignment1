@@ -1,5 +1,5 @@
 /////////////////////////////////
-// handin.cpp
+// main.cpp
 //
 // CMPUT 411
 // Assignment 1
@@ -32,8 +32,8 @@ static unsigned int modelList;
 vector<float> inputVerCoords; // vertex coordinates as inputted
 vector< vector<unsigned> > faces; // each face is a list of vertices
 
-static float modelMoved[] = { 0.0f, 0.0f, 0.0f}; // position of model
-static float modelRot[16]; // rotation of model -- in matrix stack format
+static float modelTrans[16]; // all transformations of model -- in matrix format
+static float cameraTrans[16]; // all transformations of camera -- in matrix format
 
 //static float cameraMoved[] = { 0.0f, 0.0f, 0.0f}; // position of model
 //static float camlRot[16]; // rotation of camera -- in matrix stack format
@@ -78,42 +78,18 @@ void drawScene(void)
 	glColor3f(0.0, 0.0, 0.0);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+	if (DEBUG) drawAxes(10); // camera axes
+
+	glMultMatrixf(cameraTrans);
+
 	if (DEBUG) drawAxes(10); // world axes
 
 	// Modeling transformations.
-	glTranslatef(modelMoved[0], modelMoved[1], modelMoved[2]-2.0); // add -2 here so we can rotate around center
+	glTranslatef(0.0, 0.0, -2.0); // add -2 at the end (TODO could be just included in modelTrans : first matrix == applied last)
+	glMultMatrixf(modelTrans);
 
-	if (DEBUG) drawAxes(1); // fixed (not rotating) axes at model location
-//	if (DEBUG) {
-//		// draw the 3 axis (x, y, z) <--> (red, green, blue)
-//		glColor3f(1.0, 0.0, 0.0);
-//		glBegin(GL_LINES);
-//			glVertex3f(0,0,0);
-//			glVertex3f(1,0,0);
-//		glEnd();
-//		glColor3f(0.0, 1.0, 0.0);
-//		glBegin(GL_LINES);
-//			glVertex3f(0,0,0);
-//			glVertex3f(0,1,0);
-//		glEnd();
-//		glColor3f(0.0, 0.0, 1.0);
-//		glBegin(GL_LINES);
-//			glVertex3f(0,0,0);
-//			glVertex3f(0,0,1);
-//		glEnd();
-//		glColor3f(0.0, 0.0, 0.0);
-//	}
-
-	// implement the rotation - multiply current thing by the rotation matrix
-	glMultMatrixf(modelRot);
-//	glRotatef(modelRot[0], 1, 0, 0);
-//	glRotatef(modelRot[1], 0, 1, 0);
-//	glRotatef(modelRot[2], 0, 0, 1);
-
-//	glTranslatef(0.0, 0.0, -2.0);
 	glCallList(modelList); // Execute display list.
-	if (DEBUG) drawAxes(0.1); // these rotate with the model
-
+	if (DEBUG) drawAxes(1); // these rotate with the model
 
 	glPopMatrix(); // reset to original form
 //	glFlush();
@@ -230,7 +206,8 @@ int setup(char* modelFile)
 
 	glMatrixMode(GL_MODELVIEW);
 	glLoadIdentity();
-	glGetFloatv(GL_MODELVIEW_MATRIX, modelRot); // initialize it to identity
+	glGetFloatv(GL_MODELVIEW_MATRIX, modelTrans); // initialize it to identity --> move to resetScene()
+	glGetFloatv(GL_MODELVIEW_MATRIX, cameraTrans); // initialize it to identity --> move to resetScene()
 
 	return 0;
 }
@@ -246,24 +223,44 @@ void addModelRotation(float angle, float ax, float ay, float az) {
 	// we let openGL do the multiplications.. so
 	glMatrixMode(GL_MODELVIEW);
 	glPushMatrix(); // make a copy
-	glLoadIdentity(); // clear the new one
-	glLoadMatrixf(modelRot); // load current rotations
+	glLoadMatrixf(modelTrans); // load current rotations
 	glRotatef(angle, ax, ay, az); // add new rotation
-	glGetFloatv(GL_MODELVIEW_MATRIX, modelRot); // save new rotation
+	glGetFloatv(GL_MODELVIEW_MATRIX, modelTrans); // save new rotation
+	glPopMatrix(); // reset modelview to original settings
+}
+
+/* Adds the specified rotation to the model. */
+void addModelTranslation(float x, float y, float z) {
+	// we let openGL do the multiplications.. so
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix(); // make a copy
+	glLoadMatrixf(modelTrans); // load current rotations
+	glTranslatef(x, y, z); // add new translation
+	glGetFloatv(GL_MODELVIEW_MATRIX, modelTrans); // save new rotation
 	glPopMatrix(); // reset modelview to original settings
 }
 
 // translate the camera by the given amounts (with respect to its local fram)
 void translateCamera(float x, float y, float z) {
 	glMatrixMode(GL_MODELVIEW); // make sure we have the right matrix selected
+	glPushMatrix(); // make a copy
+	glLoadIdentity(); // do nothing
 	glTranslatef(-x, -y, -z); // add the translation
+	glMultMatrixf(cameraTrans); // now add already existing camera transformations, from the left!
+	glGetFloatv(GL_MODELVIEW_MATRIX, cameraTrans); // save new rotation
+	glPopMatrix(); // reset modelview to original settings
 }
 
 // rotate the camera (with respect to its local frame) by the given amount,
 // about the given vector
 void rotateCamera(float angle, float x, float y, float z) {
 	glMatrixMode(GL_MODELVIEW); // make sure we have the right matrix selected
+	glPushMatrix(); // make a copy
+	glLoadIdentity(); // do nothing
 	glRotatef(-angle, x, y, z);
+	glMultMatrixf(cameraTrans); // now add already existing camera transformations, from the left!
+	glGetFloatv(GL_MODELVIEW_MATRIX, cameraTrans); // save new rotation
+	glPopMatrix(); // reset modelview to original settings
 }
 
 void outputModel() {
@@ -327,12 +324,12 @@ void keyInput(unsigned char key, int x, int y)
 		outputModel();
 		break;
 	// translations;
-	case 'l': modelMoved[0] -= 0.1; break;
-	case 'L': modelMoved[0] += 0.1; break;
-	case 'd': modelMoved[1] -= 0.1; break;
-	case 'D': modelMoved[1] += 0.1; break;
-	case 'n': modelMoved[2] -= 0.1; break;
-	case 'N': modelMoved[2] += 0.1; break;
+	case 'l': addModelTranslation(-0.1, 0.0, 0.0); break;
+	case 'L': addModelTranslation(0.1, 0.0, 0.0); break;
+	case 'd': addModelTranslation(0.0, -0.1, 0.0); break;
+	case 'D': addModelTranslation(0.0, 0.1, 0.0); break;
+	case 'n': addModelTranslation(0.0, 0.0, -0.1); break;
+	case 'N': addModelTranslation(0.0, 0.0, 0.1); break;
 	// rotations - change the MODELVIEW MATRIX (assume it's already selected)
 	case 'p': addModelRotation(-10.0, 1, 0, 0); break;
 	case 'P': addModelRotation(+10.0, 1, 0, 0); break;
