@@ -35,14 +35,16 @@ vector< vector<unsigned> > faces; // each face is a list of vertices
 static float modelTrans[16]; // all transformations of model -- in matrix format
 static float cameraTrans[16]; // all transformations of camera -- in matrix format
 
-//static float cameraMoved[] = { 0.0f, 0.0f, 0.0f}; // position of model
-//static float camlRot[16]; // rotation of camera -- in matrix stack format
 static bool persp = false; // perspective or orthographic projection?
 
-// rest the position and rotation of the model and the camera to the original settings
+// reset the position and rotation of the model and the camera to the original settings
 void resetScene() {
-	// TODO have to write reset code!!!!!!!!!!!!!!!!!!!!!
-	cout << "RESET CODE NEEDS TO BE WRITTEN!!!!!!!!!!!!!!!" << endl;
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	glGetFloatv(GL_MODELVIEW_MATRIX, cameraTrans); // initialize it to identity --> move to resetScene()
+	glTranslatef(0.0, 0.0, -2.0); // translate the model to (0, 0, -2)'
+	glGetFloatv(GL_MODELVIEW_MATRIX, modelTrans); // initialize it to identity --> move to resetScene()
+	glLoadIdentity();
 }
 
 void drawAxes(float length) {
@@ -69,29 +71,20 @@ void drawAxes(float length) {
 void drawScene(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT);
-//	glLoadIdentity();
-	glPushMatrix();
-
-	// camera transformations -- these are already in the current modelview matrix
-//	glTranslatef(-cameraMoved[0], -cameraMoved[1], -cameraMoved[2]); // movement is w.r.t rotation.. TODO check!
+	glLoadIdentity();
 
 	glColor3f(0.0, 0.0, 0.0);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
-	if (DEBUG) drawAxes(10); // camera axes
-
 	glMultMatrixf(cameraTrans);
-
 	if (DEBUG) drawAxes(10); // world axes
 
 	// Modeling transformations.
-	glTranslatef(0.0, 0.0, -2.0); // add -2 at the end (TODO could be just included in modelTrans : first matrix == applied last)
 	glMultMatrixf(modelTrans);
 
 	glCallList(modelList); // Execute display list.
-	if (DEBUG) drawAxes(1); // these rotate with the model
+	if (DEBUG) drawAxes(1); // local frame of the model
 
-	glPopMatrix(); // reset to original form
 //	glFlush();
 	glutSwapBuffers();
 }
@@ -104,8 +97,8 @@ int setup(char* modelFile)
 
 	// each vertex is consecutive 3 coord
 	vector<float> vertexCoords; // translated and scaled
-	double means[] = {0.0, 0.0, 0.0}; // TODO is it going to cause issues that we subtract and multiply
-	float maxs[] = {0.0f, 0.0f, 0.0f}; // floats by doubles?
+	double means[] = {0.0, 0.0, 0.0};
+	float maxs[] = {0.0f, 0.0f, 0.0f};
 	float mins[] = {0.0f, 0.0f, 0.0f};
 
 	cout << "Loading " << modelFile << endl;
@@ -122,7 +115,6 @@ int setup(char* modelFile)
 			// parse each line
 			stringstream ss(line);
 			ss >> lineType;
-//			cout << "++ " << lineType << endl;
 			if (lineType.compare("v") == 0) {
 				ss >> x >> y >> z;
 				if (DEBUG) cout << "Created vertex " << x << " " << y << " " << z << endl;
@@ -133,9 +125,9 @@ int setup(char* modelFile)
 			} else if (lineType.compare("f") == 0) {
 
 				vector<unsigned> oneFace;
-//				if (DEBUG) cout << "face ";
+				if (DEBUG) cout << "face ";
 				while (ss >> vertex) {
-//					if (DEBUG) cout << vertex << " ";
+					if (DEBUG) cout << vertex << " ";
 					if (vertex > inputVerCoords.size()) {
 						cout << "The face '" << line << "' is referencing vertex " << vertex << " which has not been defined yet. TERMINATING." << endl;
 						return 1;
@@ -143,7 +135,7 @@ int setup(char* modelFile)
 					oneFace.push_back(vertex);
 				}
 				faces.push_back(oneFace);
-//				if (DEBUG) cout << endl;
+				if (DEBUG) cout << endl;
 
 			} else {
 				if (DEBUG) 	cout << "Ignoring line: " << line << endl;
@@ -181,12 +173,8 @@ int setup(char* modelFile)
 	// scale by 1.0/maxDiff
 	for (unsigned i = 0; i < inputVerCoords.size(); i++) {
 		vertexCoords[i] /= maxDiff;
-//		if ((i%3) == 2) vertexCoords[i] -= 2;
-		// I decided not to translate here, as that makes it hard to rotate it around its center
-		// Instead, it is translated in the drawScene function
-		// TODO maybe do it here afterall, but then
+		// we translate to (0,0,-2)' later using OpenGl
 	}
-
 
 	// Set up a vertex array
 	glEnableClientState(GL_VERTEX_ARRAY);
@@ -204,16 +192,14 @@ int setup(char* modelFile)
 	glEndList();
 	// End create a display list.
 
-	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
-	glGetFloatv(GL_MODELVIEW_MATRIX, modelTrans); // initialize it to identity --> move to resetScene()
-	glGetFloatv(GL_MODELVIEW_MATRIX, cameraTrans); // initialize it to identity --> move to resetScene()
+	resetScene();
 
 	return 0;
 }
 
 // instead of the idle solution, use glutTimerFunc(period in ms, timer_function, value)
 void doWhenIdle() {
+	// just for testing
 //	modelRot[1] += 0.5;
 //	glutPostRedisplay();
 }
@@ -338,8 +324,6 @@ void keyInput(unsigned char key, int x, int y)
 	case 'r': addModelRotation(-10.0, 0, 0, 1); break;
 	case 'R': addModelRotation(+10.0, 0, 0, 1); break;
 	// camera controls
-//	case 'i': cameraMoved[2] -= 0.1; break;
-//	case 'I': cameraMoved[2] += 0.1; break;
 	case 'i': translateCamera(0.0, 0.0, -0.1); break;
 	case 'I': translateCamera(0.0, 0.0, 0.1); break;
 	case 't': rotateCamera(-10, 1, 0, 0); break;
@@ -358,10 +342,6 @@ void keyInput(unsigned char key, int x, int y)
 
 // Special keyboard input processing routine.
 void specialKeyInput(int key, int x, int y) {
-//	   if(key == GLUT_KEY_UP) cameraMoved[1] += 0.1;
-//	   if(key == GLUT_KEY_DOWN) cameraMoved[1] -= 0.1;
-//	   if(key == GLUT_KEY_LEFT) cameraMoved[0] -= 0.1;
-//	   if(key == GLUT_KEY_RIGHT) cameraMoved[0] += 0.1;
 	   if(key == GLUT_KEY_UP) translateCamera(0, 0.1, 0);
 	   if(key == GLUT_KEY_DOWN) translateCamera(0, -0.1, 0);
 	   if(key == GLUT_KEY_LEFT) translateCamera(-0.1, 0, 0);

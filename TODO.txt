@@ -1,6 +1,3 @@
 
 - NEW CONTACT
 shuyi3@ualberta.ca
-
-Both object and camera translations are messed up!! They need to move with respect to the local frame
-
