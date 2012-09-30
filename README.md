@@ -7,10 +7,10 @@ This program displays a model of wavefront obj format, specified as a single arg
 Development was done in eclipse, hence this folder actually can be imported into eclipse as a project really simply, and then built and run there. (Do not forget to specify which model to load in the command line arguments.)
 
 Alternatively, the code can be compiled and then run with the following commands:
-'''
+```
 make
 ./modelviewer <path_to_obj_file>
-'''
+```
 
 To display debugging information, as well as the local model frame (with unit length colored lines), and the global frame turn the DEBUG constant on at the beginning of the main.cpp file.
 
