@@ -33,28 +33,89 @@ vector<float> inputVerCoords; // vertex coordinates as inputted
 vector< vector<unsigned> > faces; // each face is a list of vertices
 
 static float modelMoved[] = { 0.0f, 0.0f, 0.0f}; // position of model
-static float modelRot[] = { 0.0f, 0.0f, 0.0f}; // rotation of model (aboutX, aboutY, aboutZ) around center of model
-//static float rot = 0.0f; // z position of model
+static float modelRot[16]; // rotation of model -- in matrix stack format
+
+//static float cameraMoved[] = { 0.0f, 0.0f, 0.0f}; // position of model
+//static float camlRot[16]; // rotation of camera -- in matrix stack format
 static bool persp = false; // perspective or orthographic projection?
+
+// rest the position and rotation of the model and the camera to the original settings
+void resetScene() {
+	// TODO have to write reset code!!!!!!!!!!!!!!!!!!!!!
+	cout << "RESET CODE NEEDS TO BE WRITTEN!!!!!!!!!!!!!!!" << endl;
+}
+
+void drawAxes(float length) {
+	// draw the 3 axis (x, y, z) <--> (red, green, blue)
+	glColor3f(1.0, 0.0, 0.0);
+	glBegin(GL_LINES);
+		glVertex3f(0,0,0);
+		glVertex3f(length,0,0);
+	glEnd();
+	glColor3f(0.0, 1.0, 0.0);
+	glBegin(GL_LINES);
+		glVertex3f(0,0,0);
+		glVertex3f(0,length,0);
+	glEnd();
+	glColor3f(0.0, 0.0, 1.0);
+	glBegin(GL_LINES);
+		glVertex3f(0,0,0);
+		glVertex3f(0,0,length);
+	glEnd();
+	glColor3f(0.0, 0.0, 0.0);
+}
 
 // Drawing routine.
 void drawScene(void)
 {
 	glClear(GL_COLOR_BUFFER_BIT);
-	glLoadIdentity();
+//	glLoadIdentity();
+	glPushMatrix();
+
+	// camera transformations -- these are already in the current modelview matrix
+//	glTranslatef(-cameraMoved[0], -cameraMoved[1], -cameraMoved[2]); // movement is w.r.t rotation.. TODO check!
 
 	glColor3f(0.0, 0.0, 0.0);
 	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+	if (DEBUG) drawAxes(10); // world axes
+
 	// Modeling transformations.
 	glTranslatef(modelMoved[0], modelMoved[1], modelMoved[2]-2.0); // add -2 here so we can rotate around center
-	glRotatef(modelRot[0], 1, 0, 0);
-	glRotatef(modelRot[1], 0, 1, 0);
-	glRotatef(modelRot[2], 0, 0, 1);
+
+	if (DEBUG) drawAxes(1); // fixed (not rotating) axes at model location
+//	if (DEBUG) {
+//		// draw the 3 axis (x, y, z) <--> (red, green, blue)
+//		glColor3f(1.0, 0.0, 0.0);
+//		glBegin(GL_LINES);
+//			glVertex3f(0,0,0);
+//			glVertex3f(1,0,0);
+//		glEnd();
+//		glColor3f(0.0, 1.0, 0.0);
+//		glBegin(GL_LINES);
+//			glVertex3f(0,0,0);
+//			glVertex3f(0,1,0);
+//		glEnd();
+//		glColor3f(0.0, 0.0, 1.0);
+//		glBegin(GL_LINES);
+//			glVertex3f(0,0,0);
+//			glVertex3f(0,0,1);
+//		glEnd();
+//		glColor3f(0.0, 0.0, 0.0);
+//	}
+
+	// implement the rotation - multiply current thing by the rotation matrix
+	glMultMatrixf(modelRot);
+//	glRotatef(modelRot[0], 1, 0, 0);
+//	glRotatef(modelRot[1], 0, 1, 0);
+//	glRotatef(modelRot[2], 0, 0, 1);
 
 //	glTranslatef(0.0, 0.0, -2.0);
 	glCallList(modelList); // Execute display list.
+	if (DEBUG) drawAxes(0.1); // these rotate with the model
 
+
+	glPopMatrix(); // reset to original form
 //	glFlush();
 	glutSwapBuffers();
 }
@@ -167,6 +228,9 @@ int setup(char* modelFile)
 	glEndList();
 	// End create a display list.
 
+	glMatrixMode(GL_MODELVIEW);
+	glLoadIdentity();
+	glGetFloatv(GL_MODELVIEW_MATRIX, modelRot); // initialize it to identity
 
 	return 0;
 }
@@ -175,6 +239,31 @@ int setup(char* modelFile)
 void doWhenIdle() {
 //	modelRot[1] += 0.5;
 //	glutPostRedisplay();
+}
+
+/* Adds the specified rotation to the model. */
+void addModelRotation(float angle, float ax, float ay, float az) {
+	// we let openGL do the multiplications.. so
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix(); // make a copy
+	glLoadIdentity(); // clear the new one
+	glLoadMatrixf(modelRot); // load current rotations
+	glRotatef(angle, ax, ay, az); // add new rotation
+	glGetFloatv(GL_MODELVIEW_MATRIX, modelRot); // save new rotation
+	glPopMatrix(); // reset modelview to original settings
+}
+
+// translate the camera by the given amounts (with respect to its local fram)
+void translateCamera(float x, float y, float z) {
+	glMatrixMode(GL_MODELVIEW); // make sure we have the right matrix selected
+	glTranslatef(-x, -y, -z); // add the translation
+}
+
+// rotate the camera (with respect to its local frame) by the given amount,
+// about the given vector
+void rotateCamera(float angle, float x, float y, float z) {
+	glMatrixMode(GL_MODELVIEW); // make sure we have the right matrix selected
+	glRotatef(-angle, x, y, z);
 }
 
 void outputModel() {
@@ -224,9 +313,8 @@ void keyInput(unsigned char key, int x, int y)
 {
 	switch(key)
 	{
-	case 27:
-		exit(0);
-		break;
+	case 'q': exit(0); break;
+	case 's': resetScene(); break;
 	case 'v':
 		persp = false;
 		updateProjection();
@@ -245,19 +333,43 @@ void keyInput(unsigned char key, int x, int y)
 	case 'D': modelMoved[1] += 0.1; break;
 	case 'n': modelMoved[2] -= 0.1; break;
 	case 'N': modelMoved[2] += 0.1; break;
-	// rotations:
-	case 'p': modelRot[0] -= 10.0; break;
-	case 'P': modelRot[0] += 10.0; break;
-	case 'y': modelRot[1] -= 10.0; break;
-	case 'Y': modelRot[1] += 10.0; break;
-	case 'r': modelRot[2] -= 10.0; break;
-	case 'R': modelRot[2] += 10.0; break;
+	// rotations - change the MODELVIEW MATRIX (assume it's already selected)
+	case 'p': addModelRotation(-10.0, 1, 0, 0); break;
+	case 'P': addModelRotation(+10.0, 1, 0, 0); break;
+	case 'y': addModelRotation(-10.0, 0, 1, 0); break;
+	case 'Y': addModelRotation(+10.0, 0, 1, 0); break;
+	case 'r': addModelRotation(-10.0, 0, 0, 1); break;
+	case 'R': addModelRotation(+10.0, 0, 0, 1); break;
+	// camera controls
+//	case 'i': cameraMoved[2] -= 0.1; break;
+//	case 'I': cameraMoved[2] += 0.1; break;
+	case 'i': translateCamera(0.0, 0.0, -0.1); break;
+	case 'I': translateCamera(0.0, 0.0, 0.1); break;
+	case 't': rotateCamera(-10, 1, 0, 0); break;
+	case 'T': rotateCamera(10, 1, 0, 0); break;
+	case 'a': rotateCamera(-10, 0, 1, 0); break;
+	case 'A': rotateCamera(10, 0, 1, 0); break;
+	case 'c': rotateCamera(-10, 0, 0, 1); break;
+	case 'C': rotateCamera(10, 0, 0, 1); break;
 	default:
 		break;
 	}
 
 	// for most actions this is required, other times it can't hurt
 	glutPostRedisplay();
+}
+
+// Special keyboard input processing routine.
+void specialKeyInput(int key, int x, int y) {
+//	   if(key == GLUT_KEY_UP) cameraMoved[1] += 0.1;
+//	   if(key == GLUT_KEY_DOWN) cameraMoved[1] -= 0.1;
+//	   if(key == GLUT_KEY_LEFT) cameraMoved[0] -= 0.1;
+//	   if(key == GLUT_KEY_RIGHT) cameraMoved[0] += 0.1;
+	   if(key == GLUT_KEY_UP) translateCamera(0, 0.1, 0);
+	   if(key == GLUT_KEY_DOWN) translateCamera(0, -0.1, 0);
+	   if(key == GLUT_KEY_LEFT) translateCamera(-0.1, 0, 0);
+	   if(key == GLUT_KEY_RIGHT) translateCamera(0.1, 0, 0);
+	   glutPostRedisplay();
 }
 
 // Main routine.
@@ -281,6 +393,7 @@ int main(int argc, char **argv)
 	glutDisplayFunc(drawScene);
 	glutReshapeFunc(resize);
 	glutKeyboardFunc(keyInput);
+	glutSpecialFunc(specialKeyInput);
 	glutIdleFunc(doWhenIdle); // TODO to test
 	glutMainLoop();
 
